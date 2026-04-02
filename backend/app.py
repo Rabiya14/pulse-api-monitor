@@ -1,53 +1,41 @@
-from flask import Flask, jsonify, request
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import requests
 import time
+import os
 
-app = Flask(__name__)
+# ✅ FIX PATH
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
+
+app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 CORS(app)
 
-# Default APIs
-APIS = [
-    "https://api.github.com",
-    "https://google.com"
-]
+@app.route("/")
+def home():
+    return send_from_directory(FRONTEND_DIR, "index.html")
 
-@app.route("/status")
-def status():
-    result = []
-
-    for api in APIS:
-        start = time.time()
-
-        try:
-            r = requests.get(api, timeout=3)
-            status = "UP" if r.status_code == 200 else "DOWN"
-        except:
-            status = "DOWN"
-
-        response_time = round((time.time() - start) * 1000, 2)
-
-        result.append({
-            "api": api,
-            "status": status,
-            "response_time": response_time
-        })
-
-    return jsonify(result)
-
-
-# 🔥 NEW: Add custom API
-@app.route("/add", methods=["POST"])
-def add_api():
-    data = request.json
+@app.route("/status", methods=["POST"])
+def check_status():
+    data = request.get_json()
     url = data.get("url")
 
-    if url:
-        APIS.append(url)
-        return jsonify({"message": "API added!"})
+    try:
+        start = time.time()
+        response = requests.get(url, timeout=5)
+        end = time.time()
 
-    return jsonify({"error": "No URL provided"}), 400
+        status = "UP" if response.status_code == 200 else "DOWN"
 
+        return jsonify({
+            "status": status,
+            "response_time": round(end - start, 2)
+        })
+    except:
+        return jsonify({
+            "status": "DOWN",
+            "response_time": 0
+        })
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)

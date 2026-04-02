@@ -1,54 +1,61 @@
-async function loadData() {
-    try {
-        const res = await fetch("http://127.0.0.1:5000/status");
-        const data = await res.json();
+let apiList = [];
 
-        const container = document.getElementById("container");
-        container.innerHTML = "";
+function addApi() {
+    const input = document.getElementById("apiInput");
+    const url = input.value.trim();
 
-        data.forEach(api => {
-            const div = document.createElement("div");
-            div.className = "card";
-
-            div.innerHTML = `
-                <p><b>${api.api}</b></p>
-                <p style="color:${api.status === 'UP' ? 'green' : 'red'}">
-                    Status: ${api.status}
-                </p>
-                <p>${api.response_time} ms</p>
-            `;
-
-            container.appendChild(div);
-        });
-
-    } catch (error) {
-        console.error(error);
-        alert("Backend not running!");
-    }
-}
-
-
-async function addAPI() {
-    const url = document.getElementById("apiInput").value;
-
-    if (!url) {
-        alert("Enter API URL!");
+    if (url === "") {
+        alert("Please enter a valid URL");
         return;
     }
 
-    try {
-        await fetch("http://127.0.0.1:5000/add", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ url: url })
-        });
+    apiList.push(url);
+    input.value = "";
 
-        alert("API added!");
-        document.getElementById("apiInput").value = "";
+    displayApis();
+}
 
-    } catch (error) {
-        console.error(error);
+function displayApis() {
+    const resultDiv = document.getElementById("result");
+    resultDiv.innerHTML = "<h3>Added APIs:</h3>";
+
+    apiList.forEach(api => {
+        resultDiv.innerHTML += `<p>${api}</p>`;
+    });
+}
+
+async function checkApis() {
+    const resultDiv = document.getElementById("result");
+    resultDiv.innerHTML = "<h3>Checking APIs...</h3>";
+
+    for (let url of apiList) {
+        try {
+            const response = await fetch("http://localhost:5000/status", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ url: url })
+            });
+
+            const data = await response.json();
+
+            let statusText = data.status === "UP" ? "✅ UP" : "❌ DOWN";
+
+            resultDiv.innerHTML += `
+                <p>
+                    ${url} → 
+                    <strong>${statusText}</strong>, 
+                    Time: ${data.response_time} sec
+                </p>
+            `;
+        } catch (error) {
+            resultDiv.innerHTML += `
+                <p>
+                    ${url} → 
+                    <strong style="color:red;">❌ ERROR</strong>
+                </p>
+            `;
+        }
     }
 }
